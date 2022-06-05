@@ -1,5 +1,5 @@
 package org.jeremy.spark
-package scalding
+package pbt
 
 import spark.SparkJob
 
@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.io.Source
 
-class ScaldingJobTest extends AnyFlatSpec with Matchers {
+class PropertyBasedTesting extends AnyFlatSpec with Matchers {
 
   val spark: SparkSession = SparkSession.builder().master("local[*]").appName("SparkJob").getOrCreate()
 

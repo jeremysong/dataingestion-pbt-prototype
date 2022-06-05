@@ -1,5 +1,5 @@
 package org.jeremy.spark
-package scalding
+package pbt
 
 import com.twitter.algebird.Aggregator.size
 import com.twitter.scalding._
