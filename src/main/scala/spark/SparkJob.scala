@@ -1,8 +1,8 @@
 package org.jeremy.spark
-package spark.job
+package spark
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object SparkJob {
 

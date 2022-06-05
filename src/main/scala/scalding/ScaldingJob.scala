@@ -1,9 +1,8 @@
 package org.jeremy.spark
 package scalding
 
-import com.twitter.scalding.{Args, Csv, Job, TextLine, TypedPipe}
-import com.twitter.scalding._
 import com.twitter.algebird.Aggregator.size
+import com.twitter.scalding._
 
 
 class ScaldingJob(args: Args) extends Job(args) {

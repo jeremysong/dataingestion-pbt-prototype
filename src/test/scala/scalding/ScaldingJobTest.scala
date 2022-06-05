@@ -1,13 +1,13 @@
 package org.jeremy.spark
 package scalding
 
-import com.twitter.scalding.{Args, Csv, JobTest, TextLine, TypedCsv}
+import spark.SparkJob
+
+import com.twitter.scalding.{JobTest, TypedCsv}
 import org.apache.spark.sql.SparkSession
-import org.jeremy.spark.spark.job.SparkJob
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.util.UUID
 import scala.io.Source
 
 class ScaldingJobTest extends AnyFlatSpec with Matchers {
@@ -15,8 +15,8 @@ class ScaldingJobTest extends AnyFlatSpec with Matchers {
   val spark: SparkSession = SparkSession.builder().master("local[*]").appName("SparkJob").getOrCreate()
 
   "scalding job" should "execute successfully" in {
+    // TODO input file should be generated dynamically by property-based testing
     val inputFilePath = getClass.getResource("/testFile.csv").getPath
-    val outputFilePath = UUID.randomUUID().toString
 
     // Run spark code
     val output = SparkJob.execute(spark, execParams = Map("inputPath" -> inputFilePath)).collect()

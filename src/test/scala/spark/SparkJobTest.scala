@@ -1,7 +1,7 @@
 package org.jeremy.spark
-package spark.job
+package spark
 
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.SparkSession
 
 class SparkJobTest extends org.scalatest.flatspec.AnyFlatSpec {
 
