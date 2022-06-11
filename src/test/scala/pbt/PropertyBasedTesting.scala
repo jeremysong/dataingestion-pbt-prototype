@@ -14,6 +14,12 @@ class PropertyBasedTesting extends AnyFlatSpec with Matchers {
 
   val spark: SparkSession = SparkSession.builder().master("local[*]").appName("SparkJob").getOrCreate()
 
+  /**
+   * Run tests to compare the outputs from Spark job and Scalding job. It does several things
+   * 1. Execute the Spark job and gets an output
+   * 1. Execute the Scalding job and gets an output.
+   * 1. Compare the Spark job and Scalding job.
+   */
   "scalding job" should "execute successfully" in {
     // TODO input file should be generated dynamically by property-based testing
     val inputFilePath = getClass.getResource("/testFile.csv").getPath
@@ -43,6 +49,14 @@ class PropertyBasedTesting extends AnyFlatSpec with Matchers {
       .finish()
   }
 
+  /**
+   * Asserts that the expected outputs are same as the actual output.
+   *
+   * The order does not matter.
+   *
+   * @param expected the expected outputs.
+   * @param actual the actual output.
+   */
   private def assert(expected: Seq[String], actual: Seq[String]): Unit = {
     expected should contain theSameElementsAs actual
   }
