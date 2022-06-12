@@ -1,18 +1,21 @@
-package org.jeremy.spark
 package pbt
 
-import spark.SparkJob
-
-import com.twitter.scalding.{JobTest, TypedCsv}
-import org.apache.spark.sql.SparkSession
-import org.scalatest.flatspec.AnyFlatSpec
+import com.amazon.deequ.{VerificationResult, VerificationSuite}
+import com.amazon.deequ.checks.{Check, CheckLevel, CheckStatus}
+import com.amazon.deequ.constraints.ConstraintStatus
+import job.SparkJob
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.scalacheck.Shrink
+import org.scalatest.AppendedClues
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-import scala.io.Source
-
-class PropertyBasedTesting extends AnyFlatSpec with Matchers {
+class PropertyBasedTesting extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with AppendedClues {
 
   val spark: SparkSession = SparkSession.builder().master("local[*]").appName("SparkJob").getOrCreate()
+
+  implicit def noShrink[T]: Shrink[T] = Shrink.shrinkAny
 
   /**
    * Run tests to compare the outputs from Spark job and Scalding job. It does several things
@@ -20,44 +23,51 @@ class PropertyBasedTesting extends AnyFlatSpec with Matchers {
    * 1. Execute the Scalding job and gets an output.
    * 1. Compare the Spark job and Scalding job.
    */
-  "scalding job" should "execute successfully" in {
-    // TODO input file should be generated dynamically by property-based testing
-    val inputFilePath = getClass.getResource("/testFile.csv").getPath
+  property("spark job should pass pbt") {
+    forAll (InputDataGen.dataSets(spark)) { inputDataSets =>
+      val output = SparkJob.execute(spark, execParams = Map())
 
-    // Run spark code
-    val output = SparkJob.execute(spark, execParams = Map("inputPath" -> inputFilePath)).collect()
-      .map(row => row.mkString("(", ",", ")"))
+      val verificationResult = VerificationSuite()
+        .onData(output)
+        .addCheck(
+          Check(CheckLevel.Error, "unit testing my data")
+            .hasSize(_ > 5)
+            .areComplete(Seq("customerId", "hva", "sum"))
+            .isContainedIn("hva", Array("sns_1st", "sns_nth"))
+            .isPositive("customerId")
+            .isNonNegative("sum")
+            .isPrimaryKey("customerId", "hva")
+            .hasNumberOfDistinctValues("hva", _ <= 2)
+      ).run()
 
-    // Run scaling code (reference model)
-    val inputData: List[(String, String)] = Source.fromFile(inputFilePath).getLines().map {
-      line => {
-        val splits = line.split(",")
-        (splits{0}, splits{1})
-      }
-    }.toList
-
-    JobTest[ScaldingJob]
-      .arg("inputPath", "inputFile")
-      .arg("outputPath", "outputFile")
-      .source(TypedCsv[(Long, String)]("inputFile"), inputData)
-      .sink[(Long, String, Long)](TypedCsv[(Long, String, Long)]("outputFile")) {
-        buffer => {
-          assert(buffer.map(line => line.toString()), output)
-        }
-      }
-      .run
-      .finish()
+      verify(verificationResult, inputDataSets, output)
+    }
   }
 
-  /**
-   * Asserts that the expected outputs are same as the actual output.
-   *
-   * The order does not matter.
-   *
-   * @param expected the expected outputs.
-   * @param actual the actual output.
-   */
-  private def assert(expected: Seq[String], actual: Seq[String]): Unit = {
-    expected should contain theSameElementsAs actual
+  private def verify(verificationResult: VerificationResult, inputDataSets: Map[String, List[Any]], outputData: DataFrame) = {
+    verificationResult.status shouldBe CheckStatus.Success withClue {
+      val resultsForAllConstraints = verificationResult.checkResults
+        .flatMap { case (_, checkResult) => checkResult.constraintResults }
+
+      val errors = resultsForAllConstraints
+        .filter {
+          _.status != ConstraintStatus.Success
+        }
+        .map { result => s"${result.constraint}: ${result.message.get}" }
+
+      val inputData = inputDataSets.map(entry => entry._1 + ": " + entry._2.mkString("Array(", ", ", ")")).mkString("\n\t")
+
+      s"""
+         |InputData:
+         |    $inputData
+         |
+         |OutputData:
+         |    ${outputData.collect().mkString("Array(", ", ", ")")}
+         |
+         |We found errors in the data:
+         |  ${errors.mkString("\n")}
+
+         |""".stripMargin
+    }
   }
 }
